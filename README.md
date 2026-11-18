@@ -8,6 +8,9 @@ CLI тулза для проверки скорости интернета. Вы
 python main.py <URL>
 ```
 
+Указание единицы измерения скорости:
 ```bash
-python main.py --help
+python main.py <URL> --unit mbps
+python main.py <URL> --unit mibps
 ```
+По умолчанию используется `mbps`

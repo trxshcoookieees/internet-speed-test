@@ -6,7 +6,7 @@ from urllib.request import Request, urlopen
 
 REQUEST_COUNT = 10
 TIMEOUT = 60
-CHUNK_SIZE = 8192
+CHUNK_SIZE = 65536
 
 def validate(url: str) -> str:
     try:
@@ -19,21 +19,21 @@ def validate(url: str) -> str:
 
     return url
 
-def download(url):
+def download(url) -> tuple[float, int]:
     request = Request(url)
     total_bytes = 0
 
     start_time = time.perf_counter()
 
-    with urlopen(request, timeout=60) as response:
-        while chunk := response.read(8192):
+    with urlopen(request, timeout=TIMEOUT) as response:
+        while chunk := response.read(CHUNK_SIZE):
             total_bytes += len(chunk)
 
     elapsed_time = time.perf_counter() - start_time
 
     return elapsed_time, total_bytes
 
-def format_error(e):
+def format_error(e: Exception) -> str:
     if isinstance(e, HTTPError):
         return f"HTTP error {e.code}: {e.reason}"
 
@@ -55,6 +55,12 @@ def main():
         type=validate,
         help="URL to download (example: 'https://images.unsplash.com/photo-1793640439641-1d9d454c3a7a'",
     )
+    parser.add_argument(
+        "--unit",
+        choices=["mbps", "mibps"],
+        default="mbps",
+        help="Unit of measurement: Mbps or MiB/s. Default: Mbps"
+    )
 
     args = parser.parse_args()
 
@@ -75,8 +81,8 @@ def main():
 
             print(
                 f"Request {i + 1}/{REQUEST_COUNT}: "
-                f"{left:.2f} sec |"
-                f"{done / 1_000_000:.2f} MB"
+                f"{elapsed_time:.2f} sec |"
+                f"{downloaded_bytes / 1_000_000:.2f} MB"
             )
     except (HTTPError, URLError, TimeoutError, OSError) as e:
         print(f"\n{format_error(e)}")
@@ -88,12 +94,18 @@ def main():
         return
 
     avg_time = total_time / successful_requests
-    avg_speed = total_bytes / total_time / 1_000_000
+
+    if args.unit == "mbps":
+        avg_speed = total_bytes * 8 / total_time / 1_000_000
+        unit = "Mbps"
+    else:
+        avg_speed = total_bytes / total_time / 1_048_576
+        unit = "MiB/s"
 
     print("Speed test results:\n")
     print(f"Avg request time: {avg_time:.2f} sec")
     print(f"Data downloaded: {total_bytes / 1_000_000:.2f} MB")
-    print(f"Avg download speed: {avg_speed:.2f} MB/s")
+    print(f"Avg download speed: {avg_speed:.2f} {unit}")
 
 if __name__ == "__main__":
     main()
